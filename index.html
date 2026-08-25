@@ -15,7 +15,9 @@
         .field { margin-bottom: 10px; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #1e3a8a; }
         .label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 2px; }
         .val { font-size: 14px; color: #0f172a; font-weight: 500; word-break: break-word; }
-        .badge { display: inline-block; background: #cbd5e1; color: #0f172a; padding: 3px 8px; border-radius: 4px; font-size: 13px; margin-right: 5px; margin-top: 4px; font-weight: 600; }
+        .val a { color: #2563eb; font-weight: bold; text-decoration: none; }
+        .val a:hover { text-decoration: underline; }
+        .badge { display: block; background: #e2e8f0; color: #0f172a; padding: 4px 8px; border-radius: 4px; font-size: 13px; margin-top: 4px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -29,13 +31,14 @@
 
         <div class="card">
             <div class="field"><div class="label">Fecha</div><div class="val" id="rFecha">-</div></div>
-            <div class="field"><div class="label">Dirección</div><div class="val" id="rDireccion">-</div></div>
+            <div class="field"><div class="label">Dirección del Hecho</div><div class="val" id="rDireccion">-</div></div>
             <div class="field"><div class="label">Localidad</div><div class="val" id="rLocalidad">-</div></div>
+            <div class="field"><div class="label">Geolocalización según Dirección</div><div class="val" id="rGeo">-</div></div>
             <div class="field"><div class="label">Tipo de Delito</div><div class="val" id="rTipoDelito">-</div></div>
             <div class="field"><div class="label">Damnificado</div><div class="val" id="rDamnificado">-</div></div>
             <div class="field"><div class="label">Elementos Sustraídos o Dañados</div><div class="val" id="rSustraidos">-</div></div>
             <div class="field"><div class="label">Aprehendidos / Detenidos</div><div class="val" id="rAprehendidos">-</div></div>
-            <div class="field"><div class="label">Involucrados</div><div class="val" id="rInvolucrados">-</div></div>
+            <div class="field"><div class="label">Involucrados (Apellido, Nombre, Edad)</div><div class="val" id="rInvolucrados">-</div></div>
             <div class="field"><div class="label">Elementos Secuestrados</div><div class="val" id="rSecuestrados">-</div></div>
         </div>
     </div>
@@ -56,17 +59,24 @@
                 return "No especifica";
             }
 
-            // Extracción individual
+            // 1. Extracción de datos directos
             const fecha = obtenerValor(["Fecha"]);
-            const direccion = obtenerValor(["Dirección", "Direccion"]);
+            const direccion = obtenerValor(["Dirección del Hecho", "Dirección", "Direccion"]);
             const localidad = obtenerValor(["Localidad"]);
             const tipoDelito = obtenerValor(["Tipo de Delito", "Delito"]);
             const damnificado = obtenerValor(["Damnificado"]);
-            const sustraidos = obtenerValor(["Elementos Sustraídos o Dañados", "Elementos Sustraidos"]);
-            const aprehendidos = obtenerValor(["Aprehendidos / Detenidos", "Aprehendidos"]);
+            const sustraidos = obtenerValor(["Elementos Sustraídos o Dañados", "Elementos Sustraidos", "Elementos Dañados"]);
+            const aprehendidos = obtenerValor(["Aprehendidos / Detenidos", "Aprehendidos", "Detenidos"]);
             const secuestrados = obtenerValor(["Elementos Secuestrados", "Secuestrados"]);
 
-            // Captura individual de involucrados
+            // 2. Generación automática de enlace a Google Maps
+            let geoLink = "No disponible";
+            if (direccion !== "No especifica") {
+                const consulta = encodeURIComponent(`${direccion}, ${localidad !== "No especifica" ? localidad : ''}`);
+                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${consulta}" target="_blank">📍 Ver ubicación en Google Maps</a>`;
+            }
+
+            // 3. Extracción individual de Involucrados
             let involucradosList = [];
             const bloqueInvolucrados = texto.match(/Involucrados[^\n]*\n([\s\S]*?)(?=\n[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+:|$)/i);
             
@@ -76,12 +86,19 @@
                     let limpia = l.replace(/^[\s*•-]+/, "").trim();
                     if (limpia) involucradosList.push(limpia);
                 });
+            } else {
+                const regexNombres = /([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+,\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+\s*\(\d{1,2}\))/g;
+                let m;
+                while ((m = regexNombres.exec(texto)) !== null) {
+                    involucradosList.push(m[1].trim());
+                }
             }
 
-            // Asignación de resultados a cada tarjeta individual
+            // Asignación de valores al DOM
             document.getElementById('rFecha').innerText = fecha;
             document.getElementById('rDireccion').innerText = direccion;
             document.getElementById('rLocalidad').innerText = localidad;
+            document.getElementById('rGeo').innerHTML = geoLink;
             document.getElementById('rTipoDelito').innerText = tipoDelito;
             document.getElementById('rDamnificado').innerText = damnificado;
             document.getElementById('rSustraidos').innerText = sustraidos;
@@ -90,7 +107,7 @@
 
             const invContainer = document.getElementById('rInvolucrados');
             if (involucradosList.length > 0) {
-                invContainer.innerHTML = involucradosList.map(i => `<span class="badge">${i}</span>`).join(" ");
+                invContainer.innerHTML = involucradosList.map(i => `<span class="badge">• ${i}</span>`).join("");
             } else {
                 invContainer.innerText = "Ninguno registrado";
             }
