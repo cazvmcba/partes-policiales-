@@ -14,8 +14,7 @@
         button:hover { background: #1e40af; }
         .field { margin-bottom: 10px; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; }
         .label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 2px; }
-        .val { font-size: 14px; color: #0f172a; font-weight: 500; min-height: 18px; }
-        .badge { display: inline-block; background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 13px; margin-right: 5px; margin-top: 4px; font-weight: bold; }
+        .val { font-size: 14px; color: #0f172a; font-weight: 500; word-break: break-word; }
     </style>
 </head>
 <body>
@@ -27,111 +26,70 @@
             <button onclick="procesar()">PROCESAR RESEÑA</button>
         </div>
 
-        <div class="card">
-            <div class="field"><div class="label">Fecha</div><div class="val" id="rFecha">-</div></div>
-            <div class="field"><div class="label">Hora</div><div class="val" id="rHora">-</div></div>
-            <div class="field"><div class="label">Dirección / Lugar</div><div class="val" id="rDireccion">-</div></div>
-            <div class="field"><div class="label">Barrio</div><div class="val" id="rBarrio">-</div></div>
-            <div class="field"><div class="label">Localidad</div><div class="val" id="rLocalidad">-</div></div>
-            <div class="field"><div class="label">Tipo de Delito / Contravención</div><div class="val" id="rDelito">-</div></div>
-            <div class="field"><div class="label">Modalidad</div><div class="val" id="rModalidad">-</div></div>
-            <div class="field"><div class="label">Aprehendidos / Detenidos / Involucrados</div><div class="val" id="rInvolucrados">-</div></div>
+        <div class="card" id="resultados">
+            <p style="color: #64748b; font-size: 14px;">Ingresa una reseña y presiona el botón para procesar.</p>
         </div>
     </div>
 
     <script>
         function procesar() {
-            const texto = document.getElementById('rawInput').value;
-            if(!texto.trim()) return alert('Por favor, ingresa el texto de una reseña.');
+            const texto = document.getElementById('rawInput').value.trim();
+            if(!texto) return alert('Por favor, ingresa el texto de una reseña.');
 
-            // 1. Fecha
-            const fechaMatch = texto.match(/FECHA:\s*(\d{2}\/\d{2}\/\d{4})/i);
-            const fecha = fechaMatch ? fechaMatch[1] : "No especifica";
+            const contenedor = document.getElementById('resultados');
+            contenedor.innerHTML = '';
 
-            // 2. Hora
-            const horaMatch = texto.match(/(\d{2}:\d{2})\s*hs/i);
-            const hora = horaMatch ? horaMatch[1] : "No especifica";
+            let datos = {};
 
-            // 3. Dirección
-            let direccion = "No especifica";
-            const dirMatch = texto.match(/DIRECCION DEL HECHO:\s*([^\n]+)/i);
-            if(dirMatch) {
-                direccion = dirMatch[1].trim();
-            } else {
-                const ubiLinea = texto.match(/\d{2}:\d{2}\s*hs\s*\/\s*([^/]+)/i);
-                if(ubiLinea) direccion = ubiLinea[1].trim();
-            }
+            // 1. Detección de patrones universales
+            const extractores = [
+                { clave: 'DEPARTAMENTAL', regex: /DEPARTAMENTAL[:\s]+([^\n*]+)/i },
+                { clave: 'FECHA', regex: /(\d{2}\/\d{2}\/\d{4})/ },
+                { clave: 'HORA', regex: /(\d{2}:\d{2})\s*(?:hs)?/i },
+                { clave: 'LUGAR / DIRECCIÓN', regex: /(?:DIRECCION|DIRECCIÓN|LUGAR|CALLE)[:\s]+([^\n*]+)/i },
+                { clave: 'BARRIO', regex: /(?:BARRIO|B°)[:\s]+([^\n*/-]+)/i },
+                { clave: 'LOCALIDAD', regex: /(?:LOCALIDAD|CIUDAD)[:\s]+([^\n*]+)/i },
+                { clave: 'DELITO / CONTRAVENCIÓN', regex: /(?:DELITO O CONTRAVENCION|DELITO|CONTRAVENCION|HECHO)[:\s]+([^\n*]+)/i },
+                { clave: 'MODALIDAD', regex: /(?:MODALIDAD)[:\s]+([^\n*]+)/i },
+                { clave: 'RESEÑA / RESUMEN', regex: /(?:RESEÑA|DESCRIPCION|DESCRIPCIÓN)[:\s]+([\s\S]+)/i }
+            ];
 
-            // 4. Barrio
-            let barrio = "No especifica";
-            const barrioMatch = texto.match(/BARRIO:\s*([^\n]+)/i);
-            if(barrioMatch) {
-                barrio = barrioMatch[1].trim();
-            } else {
-                const bLinea = texto.match(/B°\s*([^/-\n]+)/i);
-                if(bLinea) barrio = bLinea[1].trim();
-            }
+            extractores.forEach(item => {
+                const m = texto.match(item.regex);
+                if(m && m[1]) {
+                    datos[item.clave] = m[1].trim();
+                }
+            });
 
-            // 5. Localidad
-            let localidad = "No especifica";
-            const locMatch = texto.match(/LOCALIDAD:\s*([^\n]+)/i);
-            if(locMatch) {
-                localidad = locMatch[1].trim();
-            } else {
-                if(texto.toLowerCase().includes("villa maría") || texto.toLowerCase().includes("villa maria")) localidad = "Villa María";
-            }
-
-            // 6. Delito / Contravención
-            let delito = "No especifica";
-            const delMatch = texto.match(/DELITO O CONTRAVENCION:\s*([^\n]+)/i);
-            if(delMatch) {
-                delito = delMatch[1].trim();
-            } else {
-                const entreAsteriscos = texto.match(/\*([^*]+)\*/g);
-                if(entreAsteriscos) {
-                    for(let match of entreAsteriscos) {
-                        let limpia = match.replace(/\*/g, '').trim();
-                        if(!limpia.includes("DEPARTAMENTAL") && !limpia.includes("FECHA") && !limpia.includes("Ayrton")) {
-                            delito = limpia;
-                            break;
-                        }
+            // 2. Si el formato no tiene etiquetas clave, procesa cada línea/asterisco por separado
+            if (Object.keys(datos).length < 2) {
+                const lineas = texto.split(/\n+/);
+                lineas.forEach((linea, index) => {
+                    let l = linea.trim().replace(/^\*+|\*+$/g, '');
+                    if(!l) return;
+                    if(l.includes(':')) {
+                        let partes = l.split(':');
+                        let titulo = partes[0].trim().toUpperCase();
+                        let valor = partes.slice(1).join(':').trim();
+                        if(titulo && valor) datos[titulo] = valor;
+                    } else if(l.includes('/')) {
+                        let partes = l.split('/');
+                        partes.forEach((p, i) => {
+                            if(p.trim()) datos[`DATOS PARTE (${i+1})`] = p.trim();
+                        });
+                    } else {
+                        datos[`SECCIÓN ${index + 1}`] = l;
                     }
-                }
+                });
             }
 
-            // 7. Modalidad
-            let modalidad = "No especifica";
-            const modMatch = texto.match(/MODALIDAD:\s*([^\n]+)/i);
-            if(modMatch) {
-                modalidad = modMatch[1].trim();
-            } else {
-                const modCitas = texto.match(/modalidad\s*“([^”"]+)”/i);
-                if(modCitas) modalidad = modCitas[1].trim();
+            // 3. Crear tarjetas independientes de forma dinámica
+            for (let [titulo, valor] of Object.entries(datos)) {
+                const div = document.createElement('div');
+                div.className = 'field';
+                div.innerHTML = `<div class="label">${titulo}</div><div class="val">${valor}</div>`;
+                contenedor.appendChild(div);
             }
-
-            // 8. Involucrados
-            let personas = [];
-            const regexInvolucrados = /([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)\s*(?:\((\d{1,2})\)|,?\s*(\d{1,2})\s*AÑOS)/g;
-            let match;
-            while ((match = regexInvolucrados.exec(texto)) !== null) {
-                let nombre = match[1].replace(/Aprehendido|traslado de|y|APRENDIDO O DETENIDO/gi, '').trim();
-                let edad = match[2] || match[3];
-                if(nombre.length > 2 && edad && !nombre.toLowerCase().includes("fecha") && !nombre.toLowerCase().includes("hora")) {
-                    personas.push(`${nombre} (${edad} años)`);
-                }
-            }
-
-            // Actualizar campos individuales
-            document.getElementById('rFecha').innerText = fecha;
-            document.getElementById('rHora').innerText = hora;
-            document.getElementById('rDireccion').innerText = direccion;
-            document.getElementById('rBarrio').innerText = barrio;
-            document.getElementById('rLocalidad').innerText = localidad;
-            document.getElementById('rDelito').innerText = delito;
-            document.getElementById('rModalidad').innerText = modalidad;
-            document.getElementById('rInvolucrados').innerHTML = personas.length > 0 
-                ? personas.map(p => `<span class="badge">${p}</span>`).join('') 
-                : 'Ninguno registrado';
         }
     </script>
 </body>
