@@ -8,7 +8,6 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e2e8f0; color: #0f172a; padding: 15px; margin: 0; }
         .container { max-width: 680px; margin: 0 auto; }
         
-        /* Encabezado Institucional */
         .header-institucional { background: #051923; color: white; padding: 20px 15px; border-radius: 8px 8px 0 0; text-align: center; border-bottom: 4px solid #006494; }
         .header-institucional img { width: 75px; height: auto; margin-bottom: 8px; border-radius: 4px; }
         .header-institucional h1 { margin: 0; font-size: 18px; letter-spacing: 1px; text-transform: uppercase; color: #ffffff; font-weight: 700; }
@@ -38,21 +37,18 @@
 <body>
     <div class="container">
         
-        <!-- ENCABEZADO INSTITUCIONAL -->
         <div class="header-institucional">
             <img src="https://lh3.googleusercontent.com/d/1Rbq78oWC8VTD83tNt36FEYQ5nLZI5m1V" alt="Logo Policía">
             <h1>POLICÍA DE LA PROVINCIA DE CÓRDOBA</h1>
             <p>Sistema de Procesamiento Informativo</p>
         </div>
 
-        <!-- SECCIÓN RESEÑA -->
         <div class="card">
             <h2 class="titulo-seccion">Reseña:</h2>
             <textarea id="rawInput" placeholder="Pega el texto del parte policial aquí..."></textarea>
             <button class="btn-main" onclick="procesarParte()">PROCESAR DATOS</button>
         </div>
 
-        <!-- SECCIÓN PARTE INFORMATIVO -->
         <div class="card card-resultado">
             <h2 class="titulo-seccion" style="color: #051923; text-align: center; font-size: 18px; margin-bottom: 15px;">PARTE INFORMATIVO</h2>
             
@@ -84,7 +80,7 @@
                     return;
                 }
 
-                // 1. URD / Departamental
+                // 1. URD
                 let urd = "Gral. San Martín";
                 const matchUrd = txt.match(/(?:DEPARTAMENTAL|URD)\s+([A-ZÁÉÍÓÚÑ\.\s]+)/i);
                 if (matchUrd) urd = matchUrd[1].replace(/\n/g, '').trim();
@@ -94,49 +90,86 @@
                 const matchFecha = txt.match(/FECHA:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
                 if (matchFecha) fecha = matchFecha[1];
 
-                // 3. Encabezado principal (Hora, Dirección, Barrio, Localidad, Delito)
+                // 3. Hora
                 let hora = "No especifica";
+                const matchHora = txt.match(/(\d{1,2}:\d{2})\s*(?:hs|hrs)?/i);
+                if (matchHora) hora = matchHora[1] + " hs.";
+
+                // 4. Encabezado Flexible (Dirección, Barrio, Localidad, Delito)
                 let direccion = "No especifica";
                 let barrio = "No especifica";
                 let localidad = "No especifica";
                 let delito = "No especifica";
 
-                const matchEncabezado = txt.match(/(\d{1,2}:\d{2})\s*HS\.\s*([^.]+)\.\s*(?:B°|Barrio)\s*([^\/]+)\/([^\/]+)\/\s*([^\.\n]+)/i);
-                
-                if (matchEncabezado) {
-                    hora = matchEncabezado[1] + " hs.";
-                    direccion = matchEncabezado[2].trim();
-                    barrio = matchEncabezado[3].trim();
-                    localidad = matchEncabezado[4].trim();
-                    delito = matchEncabezado[5].trim();
+                // Buscar patrón con barras /
+                const partesBarra = txt.split('/');
+                if (partesBarra.length >= 3) {
+                    // Parte 1 contiene hora y lugar (Ej: "03:50 hs/Ara San Juan y Enrique Hoch - Villa María")
+                    let lugarStr = partesBarra[0].replace(/.*?\b\d{1,2}:\d{2}\s*(?:hs|hrs)?\s*\/?/i, '').trim();
+                    if (!lugarStr && partesBarra.length > 1) {
+                        lugarStr = partesBarra[1].trim();
+                    }
+
+                    if (lugarStr.includes('-')) {
+                        let partesLugar = lugarStr.split('-');
+                        direccion = partesLugar[0].trim();
+                        localidad = partesLugar[1].trim();
+                    } else {
+                        direccion = lugarStr;
+                    }
+
+                    // Extraer Barrio si viene especificado explícitamente
+                    const matchB = direccion.match(/(?:B°|Barrio)\s*([^,-]+)/i);
+                    if (matchB) {
+                        barrio = matchB[1].trim();
+                        direccion = direccion.replace(/(?:B°|Barrio)\s*[^,-]+/i, '').trim();
+                    }
+
+                    // La segunda parte suele ser el Delito (Ej: "APREHENSIÓN PSA ROBO Y RECUPERO DE ELEMENTO SUSTRAÍDO")
+                    delito = partesBarra[1].trim();
+                    if (delito.toLowerCase().includes("se procede") || delito.length > 80) {
+                        if (partesBarra.length > 2) delito = partesBarra[2].trim();
+                    }
                 }
 
-                // 4. Damnificado y Edad
-                let damnificado = "No especifica";
-                let edadDamnificado = "No especifica";
-                const matchDamn = txt.match(/(?:se hace presente|manifestaciones de|víctima|damnificado)\s*(?:en esta dependencia)?\s*([A-ZÁÉÍÓÚÑ\s]{3,})\.\s*\((?:\w+\s*)?(\d{1,2})\)/i);
-                if (matchDamn) {
-                    damnificado = matchDamn[1].trim();
-                    edadDamnificado = matchDamn[2].trim();
-                }
-
-                // 5. Supuesto Autor / Detenido y Edad
+                // 5. Detenido / Aprehendido / Autor
                 let autor = "No especifica";
                 let edadAutor = "No especifica";
-                const matchAutor = txt.match(/(?:pareja|autor|acusado|imputado|aprehendido|detenido)\s*([A-ZÁÉÍÓÚÑ\s]{3,})\.\s*\((?:\w+\s*)?(\d{1,2})\)/i);
-                if (matchAutor) {
-                    autor = matchAutor[1].trim();
-                    edadAutor = matchAutor[2].trim();
+                const matchDetenido = txt.match(/(?:aprehensión de|detención de|traslado de|pareja|autor)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)\s*\(\s*(\d{1,2})\s*\)/i);
+                if (matchDetenido) {
+                    autor = matchDetenido[1].trim();
+                    edadAutor = matchDetenido[2].trim();
                 }
 
-                // 6. Elementos Secuestrados / Sustraídos
-                let secuestrados = "NO REGISTRA ELEMENTOS SECUESTRADOS";
+                // 6. Elementos Sustraídos
                 let sustraidos = "NO REGISTRA ELEMENTOS SUSTRAIDOS";
+                const matchSust = txt.match(/(?:sustrae|sustracción de)\s+([^.]+?)(?=\.\s*Se|\.\s*|;\s*|$)/i);
+                if (matchSust) {
+                    sustraidos = matchSust[1].trim();
+                }
+
+                // 7. Elementos Secuestrados
+                let secuestrados = "NO REGISTRA ELEMENTOS SECUESTRADOS";
+                const matchSec = txt.match(/(?:secuestro de|secuestrando)\s+([^.]+?)(?=\.\s*|$)/i);
+                if (matchSec) {
+                    secuestrados = matchSec[1].trim();
+                }
+
+                // 8. Damnificado
+                let damnificado = "No especifica";
+                let edadDamnificado = "No especifica";
+                const matchDamn = txt.match(/(?:propietario|local comercial|víctima|damnificado)\s*(?:ubicado en)?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s]{3,})/i);
+                if (txt.includes("local comercial")) {
+                    damnificado = "Local Comercial";
+                }
 
                 // Geolocalización
                 let geoHtml = "No disponible";
                 if (direccion !== "No especifica") {
-                    let query = direccion + ", " + barrio + ", " + localidad + ", Córdoba, Argentina";
+                    let query = direccion;
+                    if (barrio !== "No especifica") query += ", " + barrio;
+                    if (localidad !== "No especifica") query += ", " + localidad;
+                    query += ", Córdoba, Argentina";
                     geoHtml = '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query) + '" target="_blank">📍 Ver en Google Maps</a>';
                 }
 
