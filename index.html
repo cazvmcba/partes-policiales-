@@ -94,62 +94,55 @@
                 let sustraidos = "NO REGISTRA ELEMENTOS SUSTRAIDOS";
                 let secuestrados = "NO REGISTRA ELEMENTOS SECUESTRADOS";
 
-                // 1. URD y FECHA
+                // 1. Extraer URD y Fecha
                 let mUrd = rawText.match(/(?:DEPARTAMENTAL|URD)\s+([A-ZÁÉÍÓÚÑ\s]+)/i);
                 if (mUrd) urd = mUrd[1].split('\n')[0].trim();
 
                 let mFecha = rawText.match(/FECHA:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
                 if (mFecha) fecha = mFecha[1];
 
-                // 2. HORA
+                // 2. Extraer Hora
                 let mHora = rawText.match(/(\d{1,2}:\d{2})\s*(?:hs|hrs)?/i);
                 if (mHora) hora = mHora[1] + " HS.";
 
-                // 3. ESTRATEGIA DE UBICACIÓN Y DELITO
-                // Separa la línea estructurada principal por barras "/"
+                // 3. Procesamiento Estricto por Segmentos (Dirección - Barrio - Localidad)
                 let lineas = rawText.split('\n');
-                let lineaClave = lineas.find(l => l.includes('/') && l.includes(':')) || "";
+                let lineaClave = lineas.find(l => l.includes('/') && l.includes('-')) || lineas.find(l => l.includes('-')) || "";
 
                 if (lineaClave) {
-                    let bloques = lineaClave.split('/');
+                    // Limpiar la hora del inicio si la tuviera
+                    let limpio = lineaClave.replace(/.*?(\d{1,2}:\d{2}\s*(?:hs|hrs)?)\s*\/?/i, '').trim();
+                    let bloquesBarra = limpio.split('/');
+
+                    // Buscar el bloque que contiene los guiones de ubicación (ej: "PORFIRIO SEPPEY Y MENDOZA - B° SAN MARTIN - VILLA MARÍA")
+                    let textoUbicacion = bloquesBarra.find(b => b.includes('-')) || bloquesBarra[0] || limpio;
                     
-                    // Bloque 0: Contiene Hora y Ubicación completa (ej: "00:45hs / PORFIRIO SEPPEY Y MENDOZA - B° SAN MARTIN - VILLA MARÍA")
-                    let ubicaSegmento = bloques[0].replace(/.*?\d{1,2}:\d{2}\s*(?:hs|hrs)?\s*\/?/i, '').trim();
-                    if (!ubicaSegmento && bloques.length > 1) {
-                        ubicaSegmento = bloques[1].trim();
-                        bloques.shift(); // Desplazar si la hora estaba en un bloque aislado
+                    let partesGuion = textoUbicacion.split('-').map(s => s.trim());
+
+                    if (partesGuion.length >= 3) {
+                        direccion = partesGuion[0];
+                        barrio = partesGuion[1].replace(/(?:B°|BARRIO)\s*/i, '').trim();
+                        localidad = partesGuion[2];
+                    } else if (partesGuion.length === 2) {
+                        direccion = partesGuion[0];
+                        localidad = partesGuion[1];
                     }
 
-                    // Procesar ubicación usando guiones o comas como separadores de dirección, barrio y localidad
-                    let partesUbicacion = ubicaSegmento.split('-').map(s => s.trim());
-                    
-                    if (partesUbicacion.length >= 3) {
-                        direccion = partesUbicacion[0];
-                        barrio = partesUbicacion[1].replace(/(?:B°|BARRIO)\s*/i, '').trim();
-                        localidad = partesUbicacion[2];
-                    } else if (partesUbicacion.length === 2) {
-                        direccion = partesUbicacion[0];
-                        if (partesUbicacion[1].match(/(?:B°|BARRIO)/i)) {
-                            barrio = partesUbicacion[1].replace(/(?:B°|BARRIO)\s*/i, '').trim();
-                        } else {
-                            localidad = partesUbicacion[1];
-                        }
-                    } else {
-                        direccion = ubicaSegmento;
-                    }
-
-                    // Captura de Delito (Generalmente en el bloque 1 o 2)
-                    if (bloques.length > 1) {
-                        let del = bloques[1].trim();
-                        if (del.length > 0 && !del.toLowerCase().includes("se entrevista") && !del.toLowerCase().includes("procede")) {
-                            delito = del;
-                        } else if (bloques.length > 2) {
-                            delito = bloques[2].trim();
-                        }
+                    // Extraer el Tipo de Delito de los bloques restantes de la barra
+                    let posiblesDelitos = bloquesBarra.filter(b => !b.includes('-') && !b.match(/\d{1,2}:\d{2}/));
+                    if (posiblesDelitos.length > 0) {
+                        let del = posiblesDelitos.find(d => !d.toLowerCase().includes("se entrevista") && !d.toLowerCase().includes("procede") && !d.toLowerCase().includes("monitoreo"));
+                        if (del) delito = del.trim();
                     }
                 }
 
-                // 4. EXTRAER PERSONAS (Damnificado / Autor)
+                // Si el delito sigue sin detectarse, buscarlo mediante palabras clave comunes
+                if (delito === "NO ESPECIFICA") {
+                    let mDelito = rawText.match(/\/\s*([A-ZÁÉÍÓÚÑ\s]+(?:ROBO|HURTO|TENTATIVA|APREHENSIÓN|DETENCIÓN)[A-ZÁÉÍÓÚÑ\s]*)\//i);
+                    if (mDelito) delito = mDelito[1].trim();
+                }
+
+                // 4. Extraer Personas (Damnificado / Autor)
                 let mDamn = rawText.match(/(?:damnificado|víctima|manifestaciones\s+de|entrevista\s+al)\s+(?:Sr\.|Sra\.)?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)\s*\(\s*(\d{1,2})\s*\)/i);
                 if (mDamn) {
                     damnificado = mDamn[1].trim();
@@ -162,25 +155,21 @@
                     edadAutor = mAutor[2].trim();
                 }
 
-                // 5. EXTRAER SUSTRAÍDOS Y SECUESTROS
+                // 5. Extraer Sustraídos y Secuestrados
                 let mSust = rawText.match(/(?:sustraer|sustrae|sustracción\s+de)\s+([^.]+?)(?=\.|\;|$)/i);
                 if (mSust) sustraidos = mSust[1].trim();
 
                 let mSec = rawText.match(/(?:secuestro\s+de|secuestrando|recupero\s+de)\s+([^.]+?)(?=\.|\;|$)/i);
                 if (mSec) secuestrados = mSec[1].trim();
 
-                // 6. ENLACE DE GEOLOCALIZACIÓN
+                // 6. Geolocalización basada estrictamente en Dirección y Localidad
                 let geoHtml = "NO DISPONIBLE";
-                if (direccion !== "NO ESPECIFICA") {
-                    let queryFinal = direccion;
-                    if (barrio !== "NO ESPECIFICA") queryFinal += ", " + barrio;
-                    if (localidad !== "NO ESPECIFICA") queryFinal += ", " + localidad;
-                    queryFinal += ", Córdoba, Argentina";
-
-                    geoHtml = '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(queryFinal) + '" target="_blank">📍 VER EN GOOGLE MAPS</a>';
+                if (direccion !== "NO ESPECIFICA" && localidad !== "NO ESPECIFICA") {
+                    let queryGeo = direccion + ", " + localidad + ", Córdoba, Argentina";
+                    geoHtml = '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(queryGeo) + '" target="_blank">📍 VER EN GOOGLE MAPS</a>';
                 }
 
-                // MOSTRAR RESULTADOS EN MAYÚSCULAS
+                // Renderizar en Mayúsculas
                 document.getElementById('rUrd').innerText = urd.toUpperCase();
                 document.getElementById('rFecha').innerText = fecha.toUpperCase();
                 document.getElementById('rHora').innerText = hora.toUpperCase();
