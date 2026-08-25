@@ -9,14 +9,13 @@
         .container { max-width: 650px; margin: 0 auto; }
         .card { background: white; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         h2 { font-size: 18px; margin-top: 0; color: #1e3a8a; }
-        textarea { width: 100%; height: 180px; padding: 10px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; font-size: 14px; font-family: inherit; }
+        textarea { width: 100%; height: 200px; padding: 10px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; font-size: 14px; font-family: inherit; }
         button { background: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 8px; }
         button:hover { background: #1e40af; }
         .field { margin-bottom: 10px; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #1e3a8a; }
         .label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 2px; }
-        .val { font-size: 14px; color: #0f172a; font-weight: 500; word-break: break-word; white-space: pre-line; }
+        .val { font-size: 14px; color: #0f172a; font-weight: 500; word-break: break-word; white-space: pre-wrap; }
         .val a { color: #2563eb; font-weight: bold; text-decoration: none; }
-        .val a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -44,61 +43,85 @@
 
     <script>
         function procesar() {
-            const texto = document.getElementById('rawInput').value;
-            if(!texto.trim()) return alert('Por favor, ingresa el parte policial.');
+            const rawText = document.getElementById('rawInput').value;
+            if(!rawText.trim()) return alert('Por favor, ingresa el parte policial.');
 
-            function extraerBloque(etiqueta, etiquetasSiguientes) {
-                const regexEtiqueta = new RegExp(etiqueta + "\\s*:", "i");
-                const posInicio = texto.search(regexEtiqueta);
-                if (posInicio === -1) return "No especifica";
+            const lineas = rawText.split('\n');
+            let datos = {
+                "Fecha": "",
+                "Dirección del Hecho": "",
+                "Localidad": "",
+                "Tipo de Delito": "",
+                "Damnificado": "",
+                "Elementos Sustraídos o Dañados": "",
+                "Aprehendidos / Detenidos": "",
+                "Involucrados": [],
+                "Elementos Secuestrados": ""
+            };
 
-                const inicioTexto = posInicio + texto.match(regexEtiqueta)[0].length;
-                let textoRestante = texto.substring(inicioTexto);
+            let campoActual = null;
 
-                let posFin = textoRestante.length;
+            lineas.forEach(l => {
+                let linea = l.trim();
+                if (!linea) return;
 
-                for (let sig of etiquetasSiguientes) {
-                    const regSig = new RegExp("\\n\\s*" + sig + "\\s*:", "i");
-                    const matchSig = textoRestante.match(regSig);
-                    if (matchSig && matchSig.index < posFin) {
-                        posFin = matchSig.index;
+                if (/^Fecha/i.test(linea)) {
+                    campoActual = "Fecha";
+                    datos["Fecha"] = linea.replace(/^Fecha\s*:\s*/i, '').trim();
+                } else if (/^Direcci[oó]n/i.test(linea)) {
+                    campoActual = "Dirección del Hecho";
+                    datos["Dirección del Hecho"] = linea.replace(/^Direcci[oó]n(\s*del\s*Hecho)?\s*:\s*/i, '').trim();
+                } else if (/^Localidad/i.test(linea)) {
+                    campoActual = "Localidad";
+                    datos["Localidad"] = linea.replace(/^Localidad\s*:\s*/i, '').trim();
+                } else if (/^Tipo\s*de\s*Delito|^Delito/i.test(linea)) {
+                    campoActual = "Tipo de Delito";
+                    datos["Tipo de Delito"] = linea.replace(/^(Tipo\s*de\s*Delito|Delito)\s*:\s*/i, '').trim();
+                } else if (/^Damnificado/i.test(linea)) {
+                    campoActual = "Damnificado";
+                    datos["Damnificado"] = linea.replace(/^Damnificado\s*:\s*/i, '').trim();
+                } else if (/^Elementos\s*Sustra[ií]dos/i.test(linea)) {
+                    campoActual = "Elementos Sustraídos o Dañados";
+                    datos["Elementos Sustraídos o Dañados"] = linea.replace(/^Elementos\s*Sustra[ií]dos\s*(o\s*Dañados)?\s*:\s*/i, '').trim();
+                } else if (/^Aprehendidos|^Detenidos/i.test(linea)) {
+                    campoActual = "Aprehendidos / Detenidos";
+                    datos["Aprehendidos / Detenidos"] = linea.replace(/^(Aprehendidos\s*\/\s*Detenidos|Aprehendidos|Detenidos)\s*:\s*/i, '').trim();
+                } else if (/^Involucrados/i.test(linea)) {
+                    campoActual = "Involucrados";
+                    let val = linea.replace(/^Involucrados(\s*\(.*?\))?\s*:\s*/i, '').trim();
+                    if (val) datos["Involucrados"].push(val);
+                } else if (/^Elementos\s*Secuestrados/i.test(linea)) {
+                    campoActual = "Elementos Secuestrados";
+                    datos["Elementos Secuestrados"] = linea.replace(/^Elementos\s*Secuestrados\s*:\s*/i, '').trim();
+                } else {
+                    if (campoActual === "Involucrados") {
+                        datos["Involucrados"].push(linea);
+                    } else if (campoActual && datos[campoActual] !== undefined) {
+                        datos[campoActual] += " " + linea;
                     }
                 }
+            });
 
-                let resultado = textoRestante.substring(0, posFin).trim();
-                return resultado || "No especifica";
-            }
-
-            // Extracción por bloques
-            const fecha = extraerBloque("Fecha", ["Dirección", "Direccion", "Localidad", "Tipo de Delito"]);
-            const direccion = extraerBloque("Dirección(?: del Hecho)?|Direccion(?: del Hecho)?", ["Localidad", "Geolocalizacion", "Tipo de Delito"]);
-            const localidad = extraerBloque("Localidad", ["Geolocalizacion", "Tipo de Delito", "Damnificado"]);
-            const tipoDelito = extraerBloque("Tipo de Delito|Delito", ["Damnificado", "Elementos Sustraídos", "Aprehendidos"]);
-            const damnificado = extraerBloque("Damnificado", ["Elementos Sustraídos", "Elementos Sustraidos", "Aprehendidos"]);
-            const sustraidos = extraerBloque("Elementos Sustraídos o Dañados|Elementos Sustraidos o Dañados", ["Aprehendidos / Detenidos", "Aprehendidos", "Involucrados"]);
-            const aprehendidos = extraerBloque("Aprehendidos / Detenidos|Aprehendidos", ["Involucrados", "Elementos Secuestrados"]);
-            const involucrados = extraerBloque("Involucrados(?: \\(Apellido, Nombre, Edad\\))?", ["Elementos Secuestrados"]);
-            const secuestrados = extraerBloque("Elementos Secuestrados", []);
-
-            // Link de Geolocalización en Google Maps
+            // Geolocalización
             let geoLink = "No disponible";
-            if (direccion !== "No especifica") {
-                const locLimpia = localidad !== "No especifica" ? localidad : '';
-                const consulta = encodeURIComponent(`${direccion}, ${locLimpia}`);
-                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${consulta}" target="_blank">📍 Ver mapa (${direccion})</a>`;
+            const dir = datos["Dirección del Hecho"];
+            const loc = datos["Localidad"];
+            if (dir) {
+                const query = encodeURIComponent(`${dir}, ${loc}`);
+                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${query}" target="_blank">📍 Ver ubicación (${dir})</a>`;
             }
 
-            // Renderizado exacto
-            document.getElementById('rFecha').innerText = fecha;
-            document.getElementById('rDireccion').innerText = direccion;
-            document.getElementById('rLocalidad').innerText = localidad;
+            // Renderizado
+            document.getElementById('rFecha').innerText = datos["Fecha"] || "No especifica";
+            document.getElementById('rDireccion').innerText = dir || "No especifica";
+            document.getElementById('rLocalidad').innerText = loc || "No especifica";
             document.getElementById('rGeo').innerHTML = geoLink;
-            document.getElementById('rTipoDelito').innerText = tipoDelito;
-            document.getElementById('rDamnificado').innerText = damnificado;
-            document.getElementById('rSustraidos').innerText = sustraidos;
-            document.getElementById('rAprehendidos').innerText = aprehendidos;
-            document.getElementById('rInvolucrados').innerText = involucrados;
-            document.getElementById('rSecuestrados').innerText = secuestrados;
+            document.getElementById('rTipoDelito').innerText = datos["Tipo de Delito"] || "No especifica";
+            document.getElementById('rDamnificado').innerText = datos["Damnificado"] || "No especifica";
+            document.getElementById('rSustraidos').innerText = datos["Elementos Sustraídos o Dañados"] || "No especifica";
+            document.getElementById('rAprehendidos').innerText = datos["Aprehendidos / Detenidos"] || "No especifica";
+            document.getElementById('rInvolucrados').innerText = datos["Involucrados"].join('\n') || "Ninguno registrado";
+            document.getElementById('rSecuestrados').innerText = datos["Elementos Secuestrados"] || "No especifica";
         }
     </script>
 </body>
