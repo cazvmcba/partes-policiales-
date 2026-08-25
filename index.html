@@ -5,29 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procesador de Partes Policiales</title>
     <style>
-        body { font-family: sans-serif; background: #f8fafc; color: #0f172a; padding: 15px; margin: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #e2e8f0; color: #0f172a; padding: 15px; margin: 0; }
         .container { max-width: 680px; margin: 0 auto; }
-        .card { background: white; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 15px; }
-        h2 { font-size: 18px; margin-top: 0; color: #1e3a8a; }
-        textarea { width: 100%; height: 180px; padding: 10px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; font-size: 14px; }
-        button { background: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; font-size: 15px; cursor: pointer; }
-        button:hover { background: #1e40af; }
-        .field { margin-bottom: 10px; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 4px solid #1e3a8a; }
-        .label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; }
-        .val { font-size: 14px; color: #0f172a; font-weight: bold; margin-top: 2px; white-space: pre-wrap; }
-        .val a { color: #2563eb; }
+        
+        /* Encabezado Institucional */
+        .header-institucional { background: #051923; color: white; padding: 20px 15px; border-radius: 8px 8px 0 0; text-align: center; border-bottom: 4px solid #006494; }
+        .header-institucional img { width: 75px; height: auto; margin-bottom: 8px; border-radius: 4px; }
+        .header-institucional h1 { margin: 0; font-size: 18px; letter-spacing: 1px; text-transform: uppercase; color: #ffffff; font-weight: 700; }
+        .header-institucional p { margin: 4px 0 0 0; font-size: 11px; letter-spacing: 1.5px; color: #94a3b8; text-transform: uppercase; }
+
+        .card { background: white; padding: 20px; border-radius: 0 0 8px 8px; border: 1px solid #cbd5e1; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .card-resultado { border-radius: 8px; }
+        
+        h2.titulo-seccion { font-size: 15px; margin-top: 0; margin-bottom: 12px; color: #13315C; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
+        
+        textarea { width: 100%; height: 160px; padding: 12px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; font-size: 14px; outline: none; resize: vertical; }
+        textarea:focus { border-color: #006494; box-shadow: 0 0 0 2px rgba(0, 100, 148, 0.2); }
+        
+        .btn-main { background: #13315C; color: white; border: none; padding: 14px; border-radius: 6px; width: 100%; font-weight: bold; font-size: 15px; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px; transition: background 0.2s; }
+        .btn-main:hover { background: #0b2545; }
+        
+        .btn-copy { background: #006494; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; font-size: 13px; cursor: pointer; text-transform: uppercase; margin-top: 15px; transition: background 0.2s; }
+        .btn-copy:hover { background: #051923; }
+
+        .field { margin-bottom: 8px; background: #f8fafc; padding: 10px 14px; border-radius: 6px; border-left: 4px solid #13315C; }
+        .label { font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; }
+        .val { font-size: 14px; color: #0b2545; font-weight: bold; margin-top: 3px; white-space: pre-wrap; }
+        .val a { color: #006494; text-decoration: none; }
+        .val a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Procesador de Partes Policiales</h2>
         
-        <div class="card">
-            <textarea id="rawInput" placeholder="Pega el parte policial aquí..."></textarea>
-            <button onclick="procesarParte()">PROCESAR PARTE</button>
+        <!-- ENCABEZADO INSTITUCIONAL -->
+        <div class="header-institucional">
+            <img src="https://lh3.googleusercontent.com/d/1Rbq78oWC8VTD83tNt36FEYQ5nLZI5m1V" alt="Logo Policía">
+            <h1>POLICÍA DE LA PROVINCIA DE CÓRDOBA</h1>
+            <p>Sistema de Procesamiento Informativo</p>
         </div>
 
+        <!-- SECCIÓN RESEÑA -->
         <div class="card">
+            <h2 class="titulo-seccion">Reseña:</h2>
+            <textarea id="rawInput" placeholder="Pega el texto del parte policial aquí..."></textarea>
+            <button class="btn-main" onclick="procesarParte()">PROCESAR DATOS</button>
+        </div>
+
+        <!-- SECCIÓN PARTE INFORMATIVO -->
+        <div class="card card-resultado">
+            <h2 class="titulo-seccion" style="color: #051923; text-align: center; font-size: 18px; margin-bottom: 15px;">PARTE INFORMATIVO</h2>
+            
+            <div class="field"><div class="label">URD</div><div class="val" id="rUrd">-</div></div>
             <div class="field"><div class="label">Fecha</div><div class="val" id="rFecha">-</div></div>
             <div class="field"><div class="label">Hora</div><div class="val" id="rHora">-</div></div>
             <div class="field"><div class="label">Dirección</div><div class="val" id="rDireccion">-</div></div>
@@ -36,64 +65,83 @@
             <div class="field"><div class="label">Geolocalización</div><div class="val" id="rGeo">-</div></div>
             <div class="field"><div class="label">Tipo de Delito / Hecho</div><div class="val" id="rTipoDelito">-</div></div>
             <div class="field"><div class="label">Damnificado</div><div class="val" id="rDamnificado">-</div></div>
+            <div class="field"><div class="label">Años</div><div class="val" id="rEdadDamnificado">-</div></div>
             <div class="field"><div class="label">Elementos Sustraídos / Dañados</div><div class="val" id="rSustraidos">-</div></div>
-            <div class="field"><div class="label">Aprehendidos / Detenidos</div><div class="val" id="rAprehendidos">-</div></div>
+            <div class="field"><div class="label">Supuesto Autor / Aprehendidos / Detenidos</div><div class="val" id="rAutor">-</div></div>
+            <div class="field"><div class="label">Años</div><div class="val" id="rEdadAutor">-</div></div>
             <div class="field"><div class="label">Elementos Secuestrados</div><div class="val" id="rSecuestrados">-</div></div>
+
+            <button class="btn-copy" onclick="copiarAlPortapapeles()">📋 COPIAR PARTE FORMATO TEXTO</button>
         </div>
     </div>
 
     <script>
-        function extraerCampo(texto, etiquetas) {
-            for (let e of etiquetas) {
-                let rx = new RegExp(e + "\\s*:\\s*(.*)", "i");
-                let m = texto.match(rx);
-                if (m && m[1].trim() !== "") {
-                    return m[1].trim();
-                }
-            }
-            return "No especifica";
-        }
-
         function procesarParte() {
             try {
                 const txt = document.getElementById('rawInput').value;
                 if (!txt.trim()) {
-                    alert('Por favor pega un parte policial.');
+                    alert('Por favor pega la reseña policial.');
                     return;
                 }
 
-                // Extracción por etiquetas exactas o patrones
-                let fecha = extraerCampo(txt, ["Fecha"]) ;
-                if (fecha === "No especifica") {
-                    let mF = txt.match(/(\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4})/);
-                    if (mF) fecha = mF[1];
+                // 1. URD / Departamental
+                let urd = "Gral. San Martín";
+                const matchUrd = txt.match(/(?:DEPARTAMENTAL|URD)\s+([A-ZÁÉÍÓÚÑ\.\s]+)/i);
+                if (matchUrd) urd = matchUrd[1].replace(/\n/g, '').trim();
+
+                // 2. Fecha
+                let fecha = "No especifica";
+                const matchFecha = txt.match(/FECHA:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                if (matchFecha) fecha = matchFecha[1];
+
+                // 3. Encabezado principal (Hora, Dirección, Barrio, Localidad, Delito)
+                let hora = "No especifica";
+                let direccion = "No especifica";
+                let barrio = "No especifica";
+                let localidad = "No especifica";
+                let delito = "No especifica";
+
+                const matchEncabezado = txt.match(/(\d{1,2}:\d{2})\s*HS\.\s*([^.]+)\.\s*(?:B°|Barrio)\s*([^\/]+)\/([^\/]+)\/\s*([^\.\n]+)/i);
+                
+                if (matchEncabezado) {
+                    hora = matchEncabezado[1] + " hs.";
+                    direccion = matchEncabezado[2].trim();
+                    barrio = matchEncabezado[3].trim();
+                    localidad = matchEncabezado[4].trim();
+                    delito = matchEncabezado[5].trim();
                 }
 
-                let hora = extraerCampo(txt, ["Hora"]);
-                if (hora === "No especifica") {
-                    let mH = txt.match(/(\d{1,2}[:\.]\d{2})\s*(?:hs|hrs)?/i);
-                    if (mH) hora = mH[1] + " hs";
+                // 4. Damnificado y Edad
+                let damnificado = "No especifica";
+                let edadDamnificado = "No especifica";
+                const matchDamn = txt.match(/(?:se hace presente|manifestaciones de|víctima|damnificado)\s*(?:en esta dependencia)?\s*([A-ZÁÉÍÓÚÑ\s]{3,})\.\s*\((?:\w+\s*)?(\d{1,2})\)/i);
+                if (matchDamn) {
+                    damnificado = matchDamn[1].trim();
+                    edadDamnificado = matchDamn[2].trim();
                 }
 
-                let direccion = extraerCampo(txt, ["Dirección", "Direccion", "Lugar"]);
-                let barrio = extraerCampo(txt, ["Barrio", "B°"]);
-                let localidad = extraerCampo(txt, ["Localidad", "Ciudad"]);
-                let delito = extraerCampo(txt, ["Tipo de Delito", "Delito", "Hecho"]);
-                let damnificado = extraerCampo(txt, ["Damnificado", "Víctima", "Victima"]);
-                let sustraidos = extraerCampo(txt, ["Elementos Sustraídos o Dañados", "Elementos Sustraídos", "Sustraídos"]);
-                let aprehendidos = extraerCampo(txt, ["Aprehendidos / Detenidos", "Aprehendidos", "Detenidos"]);
-                let secuestrados = extraerCampo(txt, ["Elementos Secuestrados", "Secuestrados"]);
+                // 5. Supuesto Autor / Detenido y Edad
+                let autor = "No especifica";
+                let edadAutor = "No especifica";
+                const matchAutor = txt.match(/(?:pareja|autor|acusado|imputado|aprehendido|detenido)\s*([A-ZÁÉÍÓÚÑ\s]{3,})\.\s*\((?:\w+\s*)?(\d{1,2})\)/i);
+                if (matchAutor) {
+                    autor = matchAutor[1].trim();
+                    edadAutor = matchAutor[2].trim();
+                }
 
-                // Georreferenciación
+                // 6. Elementos Secuestrados / Sustraídos
+                let secuestrados = "NO REGISTRA ELEMENTOS SECUESTRADOS";
+                let sustraidos = "NO REGISTRA ELEMENTOS SUSTRAIDOS";
+
+                // Geolocalización
                 let geoHtml = "No disponible";
                 if (direccion !== "No especifica") {
-                    let query = direccion;
-                    if (barrio !== "No especifica") query += ", Barrio " + barrio;
-                    if (localidad !== "No especifica") query += ", " + localidad;
+                    let query = direccion + ", " + barrio + ", " + localidad + ", Córdoba, Argentina";
                     geoHtml = '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query) + '" target="_blank">📍 Ver en Google Maps</a>';
                 }
 
-                // Renderizado en pantalla
+                // Renderizado
+                document.getElementById('rUrd').innerText = urd;
                 document.getElementById('rFecha').innerText = fecha;
                 document.getElementById('rHora').innerText = hora;
                 document.getElementById('rDireccion').innerText = direccion;
@@ -102,13 +150,37 @@
                 document.getElementById('rGeo').innerHTML = geoHtml;
                 document.getElementById('rTipoDelito').innerText = delito;
                 document.getElementById('rDamnificado').innerText = damnificado;
+                document.getElementById('rEdadDamnificado').innerText = edadDamnificado;
                 document.getElementById('rSustraidos').innerText = sustraidos;
-                document.getElementById('rAprehendidos').innerText = aprehendidos;
+                document.getElementById('rAutor').innerText = autor;
+                document.getElementById('rEdadAutor').innerText = edadAutor;
                 document.getElementById('rSecuestrados').innerText = secuestrados;
 
             } catch (err) {
-                alert('Error al procesar: ' + err.message);
+                alert('Error al procesar el parte: ' + err.message);
             }
+        }
+
+        function copiarAlPortapapeles() {
+            const urd = document.getElementById('rUrd').innerText;
+            const fecha = document.getElementById('rFecha').innerText;
+            const hora = document.getElementById('rHora').innerText;
+            const direccion = document.getElementById('rDireccion').innerText;
+            const barrio = document.getElementById('rBarrio').innerText;
+            const localidad = document.getElementById('rLocalidad').innerText;
+            const delito = document.getElementById('rTipoDelito').innerText;
+            const damnificado = document.getElementById('rDamnificado').innerText;
+            const edadDamn = document.getElementById('rEdadDamnificado').innerText;
+            const sustraidos = document.getElementById('rSustraidos').innerText;
+            const autor = document.getElementById('rAutor').innerText;
+            const edadAutor = document.getElementById('rEdadAutor').innerText;
+            const secuestrados = document.getElementById('rSecuestrados').innerText;
+
+            const textoFormateado = `URD: ${urd}\nFecha: ${fecha}\nHora: ${hora}\nDirección: ${direccion}\nBarrio: ${barrio}\nLocalidad / Ciudad: ${localidad}\nTipo de Delito / Hecho: ${delito}\nDamnificado: ${damnificado}\nAños: ${edadDamn}\nElementos Sustraídos / Dañados: ${sustraidos}\nSupuesto Autor/ Aprehendidos / Detenidos: ${autor}\nAños: ${edadAutor}\nElementos Secuestrados: ${secuestrados}`;
+
+            navigator.clipboard.writeText(textoFormateado).then(() => {
+                alert('¡Parte informativo copiado al portapapeles!');
+            });
         }
     </script>
 </body>
