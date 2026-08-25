@@ -74,96 +74,124 @@
     <script>
         function procesarParte() {
             try {
-                const txt = document.getElementById('rawInput').value;
-                if (!txt.trim()) {
+                const rawText = document.getElementById('rawInput').value;
+                if (!rawText.trim()) {
                     alert('Por favor pega la reseña policial.');
                     return;
                 }
 
-                // 1. URD
-                let urd = "Gral. San Martín";
-                const matchUrd = txt.match(/(?:DEPARTAMENTAL|URD)\s+([A-ZÁÉÍÓÚÑ\.\s]+)/i);
-                if (matchUrd) urd = matchUrd[1].replace(/\n/g, '').trim();
-
-                // 2. Fecha
+                // Normalización previa del texto
+                let lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                
+                let urd = "GENERAL SAN MARTÍN";
                 let fecha = "No especifica";
-                const matchFecha = txt.match(/FECHA:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
-                if (matchFecha) fecha = matchFecha[1];
-
-                // 3. Hora
                 let hora = "No especifica";
-                const matchHora = txt.match(/(\d{1,2}:\d{2})\s*(?:hs|hrs)?/i);
-                if (matchHora) hora = matchHora[1] + " hs.";
-
-                // 4. Encabezado Flexible (Dirección, Barrio, Localidad, Delito)
                 let direccion = "No especifica";
                 let barrio = "No especifica";
                 let localidad = "No especifica";
                 let delito = "No especifica";
-
-                // Buscar patrón con barras /
-                const partesBarra = txt.split('/');
-                if (partesBarra.length >= 3) {
-                    // Parte 1 contiene hora y lugar (Ej: "03:50 hs/Ara San Juan y Enrique Hoch - Villa María")
-                    let lugarStr = partesBarra[0].replace(/.*?\b\d{1,2}:\d{2}\s*(?:hs|hrs)?\s*\/?/i, '').trim();
-                    if (!lugarStr && partesBarra.length > 1) {
-                        lugarStr = partesBarra[1].trim();
-                    }
-
-                    if (lugarStr.includes('-')) {
-                        let partesLugar = lugarStr.split('-');
-                        direccion = partesLugar[0].trim();
-                        localidad = partesLugar[1].trim();
-                    } else {
-                        direccion = lugarStr;
-                    }
-
-                    // Extraer Barrio si viene especificado explícitamente
-                    const matchB = direccion.match(/(?:B°|Barrio)\s*([^,-]+)/i);
-                    if (matchB) {
-                        barrio = matchB[1].trim();
-                        direccion = direccion.replace(/(?:B°|Barrio)\s*[^,-]+/i, '').trim();
-                    }
-
-                    // La segunda parte suele ser el Delito (Ej: "APREHENSIÓN PSA ROBO Y RECUPERO DE ELEMENTO SUSTRAÍDO")
-                    delito = partesBarra[1].trim();
-                    if (delito.toLowerCase().includes("se procede") || delito.length > 80) {
-                        if (partesBarra.length > 2) delito = partesBarra[2].trim();
-                    }
-                }
-
-                // 5. Detenido / Aprehendido / Autor
+                let damnificado = "No especifica";
+                let edadDamnificado = "No especifica";
                 let autor = "No especifica";
                 let edadAutor = "No especifica";
-                const matchDetenido = txt.match(/(?:aprehensión de|detención de|traslado de|pareja|autor)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)\s*\(\s*(\d{1,2})\s*\)/i);
-                if (matchDetenido) {
-                    autor = matchDetenido[1].trim();
-                    edadAutor = matchDetenido[2].trim();
+                let sustraidos = "NO REGISTRA ELEMENTOS SUSTRAIDOS";
+                let secuestrados = "NO REGISTRA ELEMENTOS SECUESTRADOS";
+
+                let lineaEstructurada = "";
+
+                // 1. Recorrer líneas para separar Encabezado de Cuerpo
+                for (let line of lines) {
+                    if (line.match(/(?:DEPARTAMENTAL|URD)/i)) {
+                        let m = line.match(/(?:DEPARTAMENTAL|URD)\s+([A-ZÁÉÍÓÚÑ\s]+)/i);
+                        if (m) urd = m[1].trim();
+                    } else if (line.match(/FECHA:/i)) {
+                        let m = line.match(/FECHA:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+                        if (m) fecha = m[1];
+                    } else if (line.includes('/')) {
+                        lineaEstructurada = line; // Esta es la línea tipo "20:48hs / Chacabuco 1026, B° San Antonio / VILLA NUEVA / ROBO / Se entrevista..."
+                    }
                 }
 
-                // 6. Elementos Sustraídos
-                let sustraidos = "NO REGISTRA ELEMENTOS SUSTRAIDOS";
-                const matchSust = txt.match(/(?:sustrae|sustracción de)\s+([^.]+?)(?=\.\s*Se|\.\s*|;\s*|$)/i);
+                // Si no se detectó fecha en línea aparte, buscarla en todo el texto
+                if (fecha === "No especifica") {
+                    let mF = rawText.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+                    if (mF) fecha = mF[1];
+                }
+
+                // 2. Procesar la línea de estructura (separada por barras /)
+                if (lineaEstructurada) {
+                    let partes = lineaEstructurada.split('/');
+
+                    // Parte 0: Hora y Dirección
+                    if (partes.length > 0) {
+                        let p0 = partes[0].trim();
+                        let matchHora = p0.match(/(\d{1,2}:\d{2})\s*(?:hs|hrs)?/i);
+                        if (matchHora) {
+                            hora = matchHora[1] + " hs.";
+                            p0 = p0.replace(/(\d{1,2}:\d{2})\s*(?:hs|hrs)?/i, '').trim();
+                        }
+                        
+                        // Extraer Barrio si figura en p0 (Ej: "Chacabuco 1026, B° San Antonio")
+                        let matchBarrio = p0.match(/(?:B°|Barrio)\s*([^,]+)/i);
+                        if (matchBarrio) {
+                            barrio = matchBarrio[1].trim();
+                            p0 = p0.replace(/,?\s*(?:B°|Barrio)\s*[^,]+/i, '').trim();
+                        }
+                        direccion = p0.replace(/^[\s,:-]+|[\s,:-]+$/g, '');
+                    }
+
+                    // Parte 1: Localidad o Barrio/Localidad
+                    if (partes.length > 1) {
+                        let p1 = partes[1].trim();
+                        if (p1.match(/(?:B°|Barrio)/i)) {
+                            barrio = p1.replace(/(?:B°|Barrio)/i, '').trim();
+                        } else {
+                            localidad = p1;
+                        }
+                    }
+
+                    // Parte 2: Delito
+                    if (partes.length > 2) {
+                        let p2 = partes[2].trim();
+                        // Si p2 es la localidad porque p1 fue barrio:
+                        if (localidad === "No especifica" && !p2.toLowerCase().includes("se entrevista") && !p2.toLowerCase().includes("procede")) {
+                            localidad = p2;
+                            if (partes.length > 3) delito = partes[3].trim();
+                        } else {
+                            delito = p2;
+                        }
+                    }
+                }
+
+                // 3. Extracción dentro del texto completo (Damnificado, Autor, Sustraídos, Secuestrados)
+                
+                // Damnificado y Edad (Ej: "Sr. Maldonado Julio César (66)")
+                let matchDamn = rawText.match(/(?:entrevista\s+al|víctima|damnificado|manifestaciones\s+de)\s+(?:Sr\.|Sra\.)?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)\s*\(\s*(\d{1,2})\s*\)/i);
+                if (matchDamn) {
+                    damnificado = matchDamn[1].trim();
+                    edadDamnificado = matchDamn[2].trim();
+                }
+
+                // Autor y Edad (Ej: "Joel Jorge Leguizamon (18)")
+                let matchAutor = rawText.match(/(?:aprehensión\s+de|detención\s+de|autor)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)\s*\(\s*(\d{1,2})\s*\)/i);
+                if (matchAutor) {
+                    autor = matchAutor[1].trim();
+                    edadAutor = matchAutor[2].trim();
+                }
+
+                // Sustraídos (Ej: "sustraen una caja de seguridad...")
+                let matchSust = rawText.match(/(?:sustraen|sustrae|sustracción\s+de)\s+([^.]+?)(?=\.|$)/i);
                 if (matchSust) {
                     sustraidos = matchSust[1].trim();
                 }
 
-                // 7. Elementos Secuestrados
-                let secuestrados = "NO REGISTRA ELEMENTOS SECUESTRADOS";
-                const matchSec = txt.match(/(?:secuestro de|secuestrando)\s+([^.]+?)(?=\.\s*|$)/i);
+                // Secuestrados (Ej: "el secuestro de una caja registradora...")
+                let matchSec = rawText.match(/(?:secuestro\s+de|secuestrando|recupero\s+de)\s+([^.]+?)(?=\.|$)/i);
                 if (matchSec) {
                     secuestrados = matchSec[1].trim();
                 }
 
-                // 8. Damnificado
-                let damnificado = "No especifica";
-                let edadDamnificado = "No especifica";
-                const matchDamn = txt.match(/(?:propietario|local comercial|víctima|damnificado)\s*(?:ubicado en)?\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9\s]{3,})/i);
-                if (txt.includes("local comercial")) {
-                    damnificado = "Local Comercial";
-                }
-
-                // Geolocalización
+                // Geolocalización Link
                 let geoHtml = "No disponible";
                 if (direccion !== "No especifica") {
                     let query = direccion;
@@ -173,7 +201,7 @@
                     geoHtml = '<a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query) + '" target="_blank">📍 Ver en Google Maps</a>';
                 }
 
-                // Renderizado
+                // Render en el HTML
                 document.getElementById('rUrd').innerText = urd;
                 document.getElementById('rFecha').innerText = fecha;
                 document.getElementById('rHora').innerText = hora;
