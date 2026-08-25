@@ -14,10 +14,9 @@
         button:hover { background: #1e40af; }
         .field { margin-bottom: 10px; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #1e3a8a; }
         .label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 2px; }
-        .val { font-size: 14px; color: #0f172a; font-weight: 500; word-break: break-word; }
+        .val { font-size: 14px; color: #0f172a; font-weight: 500; word-break: break-word; white-space: pre-line; }
         .val a { color: #2563eb; font-weight: bold; text-decoration: none; }
         .val a:hover { text-decoration: underline; }
-        .badge { display: block; background: #e2e8f0; color: #0f172a; padding: 4px 8px; border-radius: 4px; font-size: 13px; margin-top: 4px; font-weight: 600; }
     </style>
 </head>
 <body>
@@ -48,53 +47,48 @@
             const texto = document.getElementById('rawInput').value;
             if(!texto.trim()) return alert('Por favor, ingresa el parte policial.');
 
-            function obtenerValor(etiquetas) {
-                for (let etq of etiquetas) {
-                    const reg = new RegExp(etq + "[:\\s]+([^\\n]+)", "i");
-                    const match = texto.match(reg);
-                    if (match && match[1].trim()) {
-                        return match[1].trim();
+            function extraerBloque(etiqueta, etiquetasSiguientes) {
+                const regexEtiqueta = new RegExp(etiqueta + "\\s*:", "i");
+                const posInicio = texto.search(regexEtiqueta);
+                if (posInicio === -1) return "No especifica";
+
+                const inicioTexto = posInicio + texto.match(regexEtiqueta)[0].length;
+                let textoRestante = texto.substring(inicioTexto);
+
+                let posFin = textoRestante.length;
+
+                for (let sig of etiquetasSiguientes) {
+                    const regSig = new RegExp("\\n\\s*" + sig + "\\s*:", "i");
+                    const matchSig = textoRestante.match(regSig);
+                    if (matchSig && matchSig.index < posFin) {
+                        posFin = matchSig.index;
                     }
                 }
-                return "No especifica";
+
+                let resultado = textoRestante.substring(0, posFin).trim();
+                return resultado || "No especifica";
             }
 
-            // 1. Extracción de datos directos
-            const fecha = obtenerValor(["Fecha"]);
-            const direccion = obtenerValor(["Dirección del Hecho", "Dirección", "Direccion"]);
-            const localidad = obtenerValor(["Localidad"]);
-            const tipoDelito = obtenerValor(["Tipo de Delito", "Delito"]);
-            const damnificado = obtenerValor(["Damnificado"]);
-            const sustraidos = obtenerValor(["Elementos Sustraídos o Dañados", "Elementos Sustraidos", "Elementos Dañados"]);
-            const aprehendidos = obtenerValor(["Aprehendidos / Detenidos", "Aprehendidos", "Detenidos"]);
-            const secuestrados = obtenerValor(["Elementos Secuestrados", "Secuestrados"]);
+            // Extracción por bloques
+            const fecha = extraerBloque("Fecha", ["Dirección", "Direccion", "Localidad", "Tipo de Delito"]);
+            const direccion = extraerBloque("Dirección(?: del Hecho)?|Direccion(?: del Hecho)?", ["Localidad", "Geolocalizacion", "Tipo de Delito"]);
+            const localidad = extraerBloque("Localidad", ["Geolocalizacion", "Tipo de Delito", "Damnificado"]);
+            const tipoDelito = extraerBloque("Tipo de Delito|Delito", ["Damnificado", "Elementos Sustraídos", "Aprehendidos"]);
+            const damnificado = extraerBloque("Damnificado", ["Elementos Sustraídos", "Elementos Sustraidos", "Aprehendidos"]);
+            const sustraidos = extraerBloque("Elementos Sustraídos o Dañados|Elementos Sustraidos o Dañados", ["Aprehendidos / Detenidos", "Aprehendidos", "Involucrados"]);
+            const aprehendidos = extraerBloque("Aprehendidos / Detenidos|Aprehendidos", ["Involucrados", "Elementos Secuestrados"]);
+            const involucrados = extraerBloque("Involucrados(?: \\(Apellido, Nombre, Edad\\))?", ["Elementos Secuestrados"]);
+            const secuestrados = extraerBloque("Elementos Secuestrados", []);
 
-            // 2. Generación automática de enlace a Google Maps
+            // Link de Geolocalización en Google Maps
             let geoLink = "No disponible";
             if (direccion !== "No especifica") {
-                const consulta = encodeURIComponent(`${direccion}, ${localidad !== "No especifica" ? localidad : ''}`);
-                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${consulta}" target="_blank">📍 Ver ubicación en Google Maps</a>`;
+                const locLimpia = localidad !== "No especifica" ? localidad : '';
+                const consulta = encodeURIComponent(`${direccion}, ${locLimpia}`);
+                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${consulta}" target="_blank">📍 Ver mapa (${direccion})</a>`;
             }
 
-            // 3. Extracción individual de Involucrados
-            let involucradosList = [];
-            const bloqueInvolucrados = texto.match(/Involucrados[^\n]*\n([\s\S]*?)(?=\n[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+:|$)/i);
-            
-            if (bloqueInvolucrados && bloqueInvolucrados[1]) {
-                const lineas = bloqueInvolucrados[1].split("\n");
-                lineas.forEach(l => {
-                    let limpia = l.replace(/^[\s*•-]+/, "").trim();
-                    if (limpia) involucradosList.push(limpia);
-                });
-            } else {
-                const regexNombres = /([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+,\s*[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+\s*\(\d{1,2}\))/g;
-                let m;
-                while ((m = regexNombres.exec(texto)) !== null) {
-                    involucradosList.push(m[1].trim());
-                }
-            }
-
-            // Asignación de valores al DOM
+            // Renderizado exacto
             document.getElementById('rFecha').innerText = fecha;
             document.getElementById('rDireccion').innerText = direccion;
             document.getElementById('rLocalidad').innerText = localidad;
@@ -103,14 +97,8 @@
             document.getElementById('rDamnificado').innerText = damnificado;
             document.getElementById('rSustraidos').innerText = sustraidos;
             document.getElementById('rAprehendidos').innerText = aprehendidos;
+            document.getElementById('rInvolucrados').innerText = involucrados;
             document.getElementById('rSecuestrados').innerText = secuestrados;
-
-            const invContainer = document.getElementById('rInvolucrados');
-            if (involucradosList.length > 0) {
-                invContainer.innerHTML = involucradosList.map(i => `<span class="badge">• ${i}</span>`).join("");
-            } else {
-                invContainer.innerText = "Ninguno registrado";
-            }
         }
     </script>
 </body>
