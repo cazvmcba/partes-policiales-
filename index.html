@@ -12,10 +12,10 @@
         textarea { width: 100%; height: 160px; padding: 10px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; font-size: 14px; }
         button { background: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 8px; }
         button:hover { background: #1e40af; }
-        .field { margin-bottom: 10px; background: #f1f5f9; padding: 10px; border-radius: 6px; }
+        .field { margin-bottom: 10px; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; }
         .label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 2px; }
-        .val { font-size: 14px; color: #0f172a; font-weight: 500; }
-        .badge { display: inline-block; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-right: 5px; margin-top: 4px; }
+        .val { font-size: 14px; color: #0f172a; font-weight: 500; min-height: 18px; }
+        .badge { display: inline-block; background: #e2e8f0; padding: 3px 8px; border-radius: 4px; font-size: 13px; margin-right: 5px; margin-top: 4px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -28,11 +28,14 @@
         </div>
 
         <div class="card">
-            <div class="field"><div class="label">Departamental / Fecha / Hora</div><div class="val" id="rEncabezado">-</div></div>
-            <div class="field"><div class="label">Ubicación (Lugar y Barrio)</div><div class="val" id="rUbicacion">-</div></div>
-            <div class="field"><div class="label">Delito / Encuadre Legal</div><div class="val" id="rDelito">-</div></div>
+            <div class="field"><div class="label">Fecha</div><div class="val" id="rFecha">-</div></div>
+            <div class="field"><div class="label">Hora</div><div class="val" id="rHora">-</div></div>
+            <div class="field"><div class="label">Dirección / Lugar</div><div class="val" id="rDireccion">-</div></div>
+            <div class="field"><div class="label">Barrio</div><div class="val" id="rBarrio">-</div></div>
+            <div class="field"><div class="label">Localidad</div><div class="val" id="rLocalidad">-</div></div>
+            <div class="field"><div class="label">Tipo de Delito / Contravención</div><div class="val" id="rDelito">-</div></div>
             <div class="field"><div class="label">Modalidad</div><div class="val" id="rModalidad">-</div></div>
-            <div class="field"><div class="label">Involucrados / Trasladados</div><div class="val" id="rInvolucrados">-</div></div>
+            <div class="field"><div class="label">Aprehendidos / Detenidos / Involucrados</div><div class="val" id="rInvolucrados">-</div></div>
         </div>
     </div>
 
@@ -41,29 +44,44 @@
             const texto = document.getElementById('rawInput').value;
             if(!texto.trim()) return alert('Por favor, ingresa el texto de una reseña.');
 
-            // 1. Departamental
-            const deptMatch = texto.match(/DEPARTAMENTAL\s+([^*\n_]+)/i);
-            const departamental = deptMatch ? deptMatch[1].trim() : "GENERAL SAN MARTIN";
-
-            // 2. Fecha
+            // 1. Fecha
             const fechaMatch = texto.match(/FECHA:\s*(\d{2}\/\d{2}\/\d{4})/i);
             const fecha = fechaMatch ? fechaMatch[1] : "No especifica";
 
-            // 3. Hora
+            // 2. Hora
             const horaMatch = texto.match(/(\d{2}:\d{2})\s*hs/i);
             const hora = horaMatch ? horaMatch[1] : "No especifica";
 
-            // 4. Ubicación
-            let ubicacion = "No especifica";
+            // 3. Dirección
+            let direccion = "No especifica";
             const dirMatch = texto.match(/DIRECCION DEL HECHO:\s*([^\n]+)/i);
             if(dirMatch) {
-                ubicacion = dirMatch[1].trim();
+                direccion = dirMatch[1].trim();
             } else {
-                const ubiLinea = texto.match(/\d{2}:\d{2}\s*hs\s*\/\s*([^/]+(?:\/[^/]+)*)\s*\//i);
-                if(ubiLinea) ubicacion = ubiLinea[1].trim();
+                const ubiLinea = texto.match(/\d{2}:\d{2}\s*hs\s*\/\s*([^/]+)/i);
+                if(ubiLinea) direccion = ubiLinea[1].trim();
             }
 
-            // 5. Delito / Contravención (Filtra encabezados para evitar falsos positivos)
+            // 4. Barrio
+            let barrio = "No especifica";
+            const barrioMatch = texto.match(/BARRIO:\s*([^\n]+)/i);
+            if(barrioMatch) {
+                barrio = barrioMatch[1].trim();
+            } else {
+                const bLinea = texto.match(/B°\s*([^/-\n]+)/i);
+                if(bLinea) barrio = bLinea[1].trim();
+            }
+
+            // 5. Localidad
+            let localidad = "No especifica";
+            const locMatch = texto.match(/LOCALIDAD:\s*([^\n]+)/i);
+            if(locMatch) {
+                localidad = locMatch[1].trim();
+            } else {
+                if(texto.toLowerCase().includes("villa maría") || texto.toLowerCase().includes("villa maria")) localidad = "Villa María";
+            }
+
+            // 6. Delito / Contravención
             let delito = "No especifica";
             const delMatch = texto.match(/DELITO O CONTRAVENCION:\s*([^\n]+)/i);
             if(delMatch) {
@@ -81,7 +99,7 @@
                 }
             }
 
-            // 6. Modalidad
+            // 7. Modalidad
             let modalidad = "No especifica";
             const modMatch = texto.match(/MODALIDAD:\s*([^\n]+)/i);
             if(modMatch) {
@@ -91,7 +109,7 @@
                 if(modCitas) modalidad = modCitas[1].trim();
             }
 
-            // 7. Involucrados
+            // 8. Involucrados
             let personas = [];
             const regexInvolucrados = /([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)\s*(?:\((\d{1,2})\)|,?\s*(\d{1,2})\s*AÑOS)/g;
             let match;
@@ -103,9 +121,12 @@
                 }
             }
 
-            // Actualizar interfaz
-            document.getElementById('rEncabezado').innerText = `${departamental} | ${fecha} - ${hora} hs`;
-            document.getElementById('rUbicacion').innerText = ubicacion;
+            // Actualizar campos individuales
+            document.getElementById('rFecha').innerText = fecha;
+            document.getElementById('rHora').innerText = hora;
+            document.getElementById('rDireccion').innerText = direccion;
+            document.getElementById('rBarrio').innerText = barrio;
+            document.getElementById('rLocalidad').innerText = localidad;
             document.getElementById('rDelito').innerText = delito;
             document.getElementById('rModalidad').innerText = modalidad;
             document.getElementById('rInvolucrados').innerHTML = personas.length > 0 
