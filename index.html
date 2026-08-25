@@ -9,7 +9,7 @@
         .container { max-width: 650px; margin: 0 auto; }
         .card { background: white; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         h2 { font-size: 18px; margin-top: 0; color: #1e3a8a; }
-        textarea { width: 100%; height: 200px; padding: 10px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; font-size: 14px; font-family: inherit; }
+        textarea { width: 100%; height: 180px; padding: 10px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; font-size: 14px; font-family: inherit; }
         button { background: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 8px; }
         button:hover { background: #1e40af; }
         .field { margin-bottom: 10px; background: #f1f5f9; padding: 8px 12px; border-radius: 6px; border-left: 3px solid #1e3a8a; }
@@ -24,20 +24,20 @@
         
         <div class="card">
             <textarea id="rawInput" placeholder="Pega el parte policial aquí..."></textarea>
-            <button onclick="procesar()">PROCESAR RESEÑA</button>
+            <button onclick="procesar()">PROCESAR PARTE</button>
         </div>
 
         <div class="card">
             <div class="field"><div class="label">Fecha</div><div class="val" id="rFecha">-</div></div>
-            <div class="field"><div class="label">Dirección del Hecho</div><div class="val" id="rDireccion">-</div></div>
+            <div class="field"><div class="label">Hora</div><div class="val" id="rHora">-</div></div>
+            <div class="field"><div class="label">Dirección</div><div class="val" id="rDireccion">-</div></div>
             <div class="field"><div class="label">Localidad</div><div class="val" id="rLocalidad">-</div></div>
-            <div class="field"><div class="label">Geolocalización según Dirección</div><div class="val" id="rGeo">-</div></div>
+            <div class="field"><div class="label">Geolocalización</div><div class="val" id="rGeo">-</div></div>
             <div class="field"><div class="label">Tipo de Delito</div><div class="val" id="rTipoDelito">-</div></div>
+            <div class="field"><div class="label">Modalidad</div><div class="val" id="rModalidad">-</div></div>
             <div class="field"><div class="label">Damnificado</div><div class="val" id="rDamnificado">-</div></div>
             <div class="field"><div class="label">Elementos Sustraídos o Dañados</div><div class="val" id="rSustraidos">-</div></div>
-            <div class="field"><div class="label">Aprehendidos / Detenidos</div><div class="val" id="rAprehendidos">-</div></div>
-            <div class="field"><div class="label">Involucrados (Apellido, Nombre, Edad)</div><div class="val" id="rInvolucrados">-</div></div>
-            <div class="field"><div class="label">Elementos Secuestrados</div><div class="val" id="rSecuestrados">-</div></div>
+            <div class="field"><div class="label">Aprehendidos / Detenidos (Apellido, Nombre, Edad)</div><div class="val" id="rAprehendidos">-</div></div>
         </div>
     </div>
 
@@ -46,82 +46,68 @@
             const rawText = document.getElementById('rawInput').value;
             if(!rawText.trim()) return alert('Por favor, ingresa el parte policial.');
 
-            const lineas = rawText.split('\n');
-            let datos = {
-                "Fecha": "",
-                "Dirección del Hecho": "",
-                "Localidad": "",
-                "Tipo de Delito": "",
-                "Damnificado": "",
-                "Elementos Sustraídos o Dañados": "",
-                "Aprehendidos / Detenidos": "",
-                "Involucrados": [],
-                "Elementos Secuestrados": ""
-            };
+            // Extracción inteligente para formatos narrativos
+            let fecha = "No especifica";
+            let hora = "No especifica";
+            let direccion = "No especifica";
+            let localidad = "No especifica";
+            let tipoDelito = "No especifica";
+            let modalidad = "No especifica";
+            let damnificado = "No especifica";
+            let sustraidos = "No especifica";
+            let aprehendidos = "No especifica";
 
-            let campoActual = null;
+            // 1. Fecha
+            const mFecha = rawText.match(/FECHA\s*:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+            if (mFecha) fecha = mFecha[1];
 
-            lineas.forEach(l => {
-                let linea = l.trim();
-                if (!linea) return;
+            // 2. Hora
+            const mHora = rawText.match(/(\d{1,2}:\d{2})\s*(?:hs|hrs)?/i);
+            if (mHora) hora = mHora[1] + " hs";
 
-                if (/^Fecha/i.test(linea)) {
-                    campoActual = "Fecha";
-                    datos["Fecha"] = linea.replace(/^Fecha\s*:\s*/i, '').trim();
-                } else if (/^Direcci[oó]n/i.test(linea)) {
-                    campoActual = "Dirección del Hecho";
-                    datos["Dirección del Hecho"] = linea.replace(/^Direcci[oó]n(\s*del\s*Hecho)?\s*:\s*/i, '').trim();
-                } else if (/^Localidad/i.test(linea)) {
-                    campoActual = "Localidad";
-                    datos["Localidad"] = linea.replace(/^Localidad\s*:\s*/i, '').trim();
-                } else if (/^Tipo\s*de\s*Delito|^Delito/i.test(linea)) {
-                    campoActual = "Tipo de Delito";
-                    datos["Tipo de Delito"] = linea.replace(/^(Tipo\s*de\s*Delito|Delito)\s*:\s*/i, '').trim();
-                } else if (/^Damnificado/i.test(linea)) {
-                    campoActual = "Damnificado";
-                    datos["Damnificado"] = linea.replace(/^Damnificado\s*:\s*/i, '').trim();
-                } else if (/^Elementos\s*Sustra[ií]dos/i.test(linea)) {
-                    campoActual = "Elementos Sustraídos o Dañados";
-                    datos["Elementos Sustraídos o Dañados"] = linea.replace(/^Elementos\s*Sustra[ií]dos\s*(o\s*Dañados)?\s*:\s*/i, '').trim();
-                } else if (/^Aprehendidos|^Detenidos/i.test(linea)) {
-                    campoActual = "Aprehendidos / Detenidos";
-                    datos["Aprehendidos / Detenidos"] = linea.replace(/^(Aprehendidos\s*\/\s*Detenidos|Aprehendidos|Detenidos)\s*:\s*/i, '').trim();
-                } else if (/^Involucrados/i.test(linea)) {
-                    campoActual = "Involucrados";
-                    let val = linea.replace(/^Involucrados(\s*\(.*?\))?\s*:\s*/i, '').trim();
-                    if (val) datos["Involucrados"].push(val);
-                } else if (/^Elementos\s*Secuestrados/i.test(linea)) {
-                    campoActual = "Elementos Secuestrados";
-                    datos["Elementos Secuestrados"] = linea.replace(/^Elementos\s*Secuestrados\s*:\s*/i, '').trim();
-                } else {
-                    if (campoActual === "Involucrados") {
-                        datos["Involucrados"].push(linea);
-                    } else if (campoActual && datos[campoActual] !== undefined) {
-                        datos[campoActual] += " " + linea;
-                    }
-                }
-            });
-
-            // Geolocalización
-            let geoLink = "No disponible";
-            const dir = datos["Dirección del Hecho"];
-            const loc = datos["Localidad"];
-            if (dir) {
-                const query = encodeURIComponent(`${dir}, ${loc}`);
-                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${query}" target="_blank">📍 Ver ubicación (${dir})</a>`;
+            // 3. Dirección y Localidad
+            const mUbicacion = rawText.match(/\d{1,2}:\d{2}\s*hs\s*\/\s*([^/]+)\/\s*([^/*]+)/i);
+            if (mUbicacion) {
+                direccion = mUbicacion[1].trim();
+                localidad = mUbicacion[2].trim();
             }
 
-            // Renderizado
-            document.getElementById('rFecha').innerText = datos["Fecha"] || "No especifica";
-            document.getElementById('rDireccion').innerText = dir || "No especifica";
-            document.getElementById('rLocalidad').innerText = loc || "No especifica";
+            // 4. Tipo de Delito
+            const mDelito = rawText.match(/\*([^*]+)\*/g);
+            if (mDelito && mDelito.length >= 2) {
+                // Toma el texto resaltado entre asteriscos (excluyendo la fecha)
+                const posibleDelito = mDelito.find(t => !t.includes("FECHA"));
+                if (posibleDelito) tipoDelito = posibleDelito.replace(/\*/g, '').trim();
+            }
+
+            // 5. Modalidad
+            const mModalidad = rawText.match(/modalidad\s*["“]([^"”]+)["”]/i);
+            if (mModalidad) modalidad = mModalidad[1];
+
+            // 6. Aprehendidos / Trasladados
+            const mAprehendidos = rawText.match(/traslado de\s*\*([^*]+)\*/i) || rawText.match(/aprehensi[oó]n de\s*\*([^*]+)\*/i);
+            if (mAprehendidos) {
+                aprehendidos = mAprehendidos[1].trim();
+            }
+
+            // Link a Maps
+            let geoLink = "No disponible";
+            if (direccion !== "No especifica") {
+                const query = encodeURIComponent(`${direccion}, ${localidad}`);
+                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${query}" target="_blank">📍 Ubicación (${direccion})</a>`;
+            }
+
+            // Renderizado en pantalla
+            document.getElementById('rFecha').innerText = fecha;
+            document.getElementById('rHora').innerText = hora;
+            document.getElementById('rDireccion').innerText = direccion;
+            document.getElementById('rLocalidad').innerText = localidad;
             document.getElementById('rGeo').innerHTML = geoLink;
-            document.getElementById('rTipoDelito').innerText = datos["Tipo de Delito"] || "No especifica";
-            document.getElementById('rDamnificado').innerText = datos["Damnificado"] || "No especifica";
-            document.getElementById('rSustraidos').innerText = datos["Elementos Sustraídos o Dañados"] || "No especifica";
-            document.getElementById('rAprehendidos').innerText = datos["Aprehendidos / Detenidos"] || "No especifica";
-            document.getElementById('rInvolucrados').innerText = datos["Involucrados"].join('\n') || "Ninguno registrado";
-            document.getElementById('rSecuestrados').innerText = datos["Elementos Secuestrados"] || "No especifica";
+            document.getElementById('rTipoDelito').innerText = tipoDelito;
+            document.getElementById('rModalidad').innerText = modalidad;
+            document.getElementById('rDamnificado').innerText = damnificado;
+            document.getElementById('rSustraidos').innerText = sustraidos;
+            document.getElementById('rAprehendidos').innerText = aprehendidos;
         }
     </script>
 </body>
