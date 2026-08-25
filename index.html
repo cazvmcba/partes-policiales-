@@ -16,6 +16,7 @@
         .label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 2px; }
         .val { font-size: 14px; color: #0f172a; font-weight: 500; word-break: break-word; white-space: pre-wrap; }
         .val a { color: #2563eb; font-weight: bold; text-decoration: none; }
+        .val a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -31,7 +32,8 @@
             <div class="field"><div class="label">Fecha</div><div class="val" id="rFecha">-</div></div>
             <div class="field"><div class="label">Hora</div><div class="val" id="rHora">-</div></div>
             <div class="field"><div class="label">Dirección</div><div class="val" id="rDireccion">-</div></div>
-            <div class="field"><div class="label">Localidad</div><div class="val" id="rLocalidad">-</div></div>
+            <div class="field"><div class="label">Barrio</div><div class="val" id="rBarrio">-</div></div>
+            <div class="field"><div class="label">Localidad / Ciudad</div><div class="val" id="rLocalidad">-</div></div>
             <div class="field"><div class="label">Geolocalización</div><div class="val" id="rGeo">-</div></div>
             <div class="field"><div class="label">Tipo de Delito</div><div class="val" id="rTipoDelito">-</div></div>
             <div class="field"><div class="label">Modalidad</div><div class="val" id="rModalidad">-</div></div>
@@ -46,10 +48,10 @@
             const rawText = document.getElementById('rawInput').value;
             if(!rawText.trim()) return alert('Por favor, ingresa el parte policial.');
 
-            // Extracción inteligente para formatos narrativos
             let fecha = "No especifica";
             let hora = "No especifica";
             let direccion = "No especifica";
+            let barrio = "No especifica";
             let localidad = "No especifica";
             let tipoDelito = "No especifica";
             let modalidad = "No especifica";
@@ -57,50 +59,69 @@
             let sustraidos = "No especifica";
             let aprehendidos = "No especifica";
 
-            // 1. Fecha
+            // 1. Extraer Fecha
             const mFecha = rawText.match(/FECHA\s*:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
             if (mFecha) fecha = mFecha[1];
 
-            // 2. Hora
+            // 2. Extraer Hora
             const mHora = rawText.match(/(\d{1,2}:\d{2})\s*(?:hs|hrs)?/i);
             if (mHora) hora = mHora[1] + " hs";
 
-            // 3. Dirección y Localidad
-            const mUbicacion = rawText.match(/\d{1,2}:\d{2}\s*hs\s*\/\s*([^/]+)\/\s*([^/*]+)/i);
-            if (mUbicacion) {
-                direccion = mUbicacion[1].trim();
-                localidad = mUbicacion[2].trim();
+            // 3. Extraer Dirección, Barrio, Localidad y Delito por bloques de barra '/'
+            const bloquesBarra = rawText.split('/');
+            
+            if (bloquesBarra.length >= 3) {
+                const ubicacionStr = bloquesBarra[1].trim();
+                const partesUbicacion = ubicacionStr.split('-').map(s => s.trim());
+
+                if (partesUbicacion.length >= 3) {
+                    direccion = partesUbicacion[0];
+                    barrio = partesUbicacion[1];
+                    localidad = partesUbicacion[2];
+                } else if (partesUbicacion.length === 2) {
+                    direccion = partesUbicacion[0];
+                    if (/^b°|^barrio/i.test(partesUbicacion[1])) {
+                        barrio = partesUbicacion[1];
+                    } else {
+                        localidad = partesUbicacion[1];
+                    }
+                } else {
+                    direccion = ubicacionStr;
+                }
+
+                // Extraer delito
+                const delitoStr = bloquesBarra[2].trim();
+                const mDelitoBloque = delitoStr.match(/\*([^*]+)\*/);
+                if (mDelitoBloque) {
+                    tipoDelito = mDelitoBloque[1].trim();
+                } else {
+                    tipoDelito = delitoStr.split('\n')[0].replace(/\*/g, '').trim();
+                }
             }
 
-            // 4. Tipo de Delito
-            const mDelito = rawText.match(/\*([^*]+)\*/g);
-            if (mDelito && mDelito.length >= 2) {
-                // Toma el texto resaltado entre asteriscos (excluyendo la fecha)
-                const posibleDelito = mDelito.find(t => !t.includes("FECHA"));
-                if (posibleDelito) tipoDelito = posibleDelito.replace(/\*/g, '').trim();
+            // 4. Modalidad
+            const mModalidad = rawText.match(/modalidad\s*["“'`]([^"”'`]+)["”'`]/i);
+            if (mModalidad) modalidad = mModalidad[1].trim();
+
+            // 5. Aprehendidos / Trasladados
+            const mNombres = rawText.match(/traslado de\s*\*([^*]+)\*/i) || rawText.match(/aprehensi[oó]n de\s*\*([^*]+)\*/i);
+            if (mNombres) {
+                aprehendidos = mNombres[1].trim();
             }
 
-            // 5. Modalidad
-            const mModalidad = rawText.match(/modalidad\s*["“]([^"”]+)["”]/i);
-            if (mModalidad) modalidad = mModalidad[1];
-
-            // 6. Aprehendidos / Trasladados
-            const mAprehendidos = rawText.match(/traslado de\s*\*([^*]+)\*/i) || rawText.match(/aprehensi[oó]n de\s*\*([^*]+)\*/i);
-            if (mAprehendidos) {
-                aprehendidos = mAprehendidos[1].trim();
-            }
-
-            // Link a Maps
+            // 6. Enlace de Geolocalización
             let geoLink = "No disponible";
             if (direccion !== "No especifica") {
-                const query = encodeURIComponent(`${direccion}, ${localidad}`);
-                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${query}" target="_blank">📍 Ubicación (${direccion})</a>`;
+                const locQuery = localidad !== "No especifica" ? localidad : '';
+                const query = encodeURIComponent(`${direccion}, ${barrio !== "No especifica" ? barrio : ''}, ${locQuery}`);
+                geoLink = `<a href="https://www.google.com/maps/search/?api=1&query=${query}" target="_blank">📍 Ver mapa (${direccion})</a>`;
             }
 
-            // Renderizado en pantalla
+            // Renderizado
             document.getElementById('rFecha').innerText = fecha;
             document.getElementById('rHora').innerText = hora;
             document.getElementById('rDireccion').innerText = direccion;
+            document.getElementById('rBarrio').innerText = barrio;
             document.getElementById('rLocalidad').innerText = localidad;
             document.getElementById('rGeo').innerHTML = geoLink;
             document.getElementById('rTipoDelito').innerText = tipoDelito;
