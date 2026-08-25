@@ -5,44 +5,112 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procesador de Partes Policiales</title>
     <style>
-        body { font-family: sans-serif; background: #f8fafc; color: #0f172a; padding: 15px; margin: 0; }
-        .card { background: white; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 15px; }
-        textarea { width: 100%; height: 180px; padding: 10px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; }
-        button { background: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; margin-top: 10px; }
-        .field { margin-bottom: 8px; background: #f1f5f9; padding: 8px; border-radius: 4px; font-size: 14px; }
-        .label { font-size: 11px; font-weight: bold; color: #64748b; text-transform: uppercase; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8fafc; color: #0f172a; padding: 15px; margin: 0; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        h2 { font-size: 18px; margin-top: 0; color: #1e3a8a; }
+        textarea { width: 100%; height: 160px; padding: 10px; border-radius: 6px; border: 1px solid #94a3b8; box-sizing: border-box; font-size: 14px; }
+        button { background: #1e3a8a; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 8px; }
+        button:hover { background: #1e40af; }
+        .field { margin-bottom: 10px; background: #f1f5f9; padding: 10px; border-radius: 6px; }
+        .label { font-size: 11px; font-weight: bold; color: #475569; text-transform: uppercase; margin-bottom: 2px; }
+        .val { font-size: 14px; color: #0f172a; font-weight: 500; }
+        .badge { display: inline-block; background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin-right: 5px; margin-top: 4px; }
     </style>
 </head>
 <body>
-    <h2>Procesador de Partes</h2>
-    <div class="card">
-        <textarea id="rawInput" placeholder="Pega el parte aquí..."></textarea>
-        <button onclick="procesar()">PROCESAR RESEÑA</button>
+    <div class="container">
+        <h2>Procesador de Partes Policiales</h2>
+        
+        <div class="card">
+            <textarea id="rawInput" placeholder="Pega el texto del parte policial aquí..."></textarea>
+            <button onclick="procesar()">PROCESAR RESEÑA</button>
+        </div>
+
+        <div class="card">
+            <div class="field"><div class="label">Departamental / Fecha / Hora</div><div class="val" id="rEncabezado">-</div></div>
+            <div class="field"><div class="label">Ubicación (Lugar y Barrio)</div><div class="val" id="rUbicacion">-</div></div>
+            <div class="field"><div class="label">Delito / Encuadre Legal</div><div class="val" id="rDelito">-</div></div>
+            <div class="field"><div class="label">Modalidad</div><div class="val" id="rModalidad">-</div></div>
+            <div class="field"><div class="label">Involucrados / Trasladados</div><div class="val" id="rInvolucrados">-</div></div>
+        </div>
     </div>
-    <div class="card" id="output">
-        <div class="label">Fecha / Hora</div><div class="field" id="rFecha">-</div>
-        <div class="label">Ubicación</div><div class="field" id="rUbi">-</div>
-        <div class="label">Delito / Modalidad</div><div class="field" id="rDelito">-</div>
-        <div class="label">Involucrados</div><div class="field" id="rInvolucrados">-</div>
-    </div>
+
     <script>
         function procesar() {
-            const t = document.getElementById('rawInput').value;
-            if(!t.trim()) return;
-            const f = (t.match(/FECHA:\s*(\d{2}\/\d{2}\/\d{4})/i) || [])[1] || "-";
-            const h = (t.match(/(\d{2}:\d{2})\s*hs/i) || [])[1] || "-";
-            let d = (t.match(/DIRECCION DEL HECHO:\s*([^\n]+)/i) || [])[1] || (t.match(/\d{2}:\d{2}\s*hs\s*\/\s*([^\/\n-]+)/i) || [])[1] || "-";
-            let b = (t.match(/BARRIO:\s*([^\n]+)/i) || [])[1] || (t.match(/B°\s*([^\/\n-]+)/i) || [])[1] || "";
-            let del = (t.match(/DELITO O CONTRAVENCION:\s*([^\n]+)/i) || [])[1] || (t.match(/\*([^*]+)\*/g) || [])[1]?.replace(/\*/g,'') || "-";
-            let mod = (t.match(/MODALIDAD:\s*([^\n]+)/i) || [])[1] || (t.match(/modalidad\s*“([^”"]+)”/i) || [])[1] || "";
-            
-            const m = [...t.matchAll(/([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+)(?:\((\d{1,2})\)|,?\s*(\d{1,2})\s*AÑOS)/g)];
-            let inv = m.map(x => `${x[1].replace(/Aprehendido|traslado de|y/gi, '').trim()} (${x[2]||x[3]} años)`).filter(x => x.length > 8).join(', ');
+            const texto = document.getElementById('rawInput').value;
+            if(!texto.trim()) return alert('Por favor, ingresa el texto de una reseña.');
 
-            document.getElementById('rFecha').innerText = `${f} - ${h} hs`;
-            document.getElementById('rUbi').innerText = `${d.trim()} ${b ? '(B° ' + b.trim() + ')' : ''}`;
-            document.getElementById('rDelito').innerText = `${del.trim()} ${mod ? '[' + mod.trim() + ']' : ''}`;
-            document.getElementById('rInvolucrados').innerText = inv || "Ninguno registrado";
+            // 1. Departamental
+            const deptMatch = texto.match(/DEPARTAMENTAL\s+([^*\n_]+)/i);
+            const departamental = deptMatch ? deptMatch[1].trim() : "GENERAL SAN MARTIN";
+
+            // 2. Fecha
+            const fechaMatch = texto.match(/FECHA:\s*(\d{2}\/\d{2}\/\d{4})/i);
+            const fecha = fechaMatch ? fechaMatch[1] : "No especifica";
+
+            // 3. Hora
+            const horaMatch = texto.match(/(\d{2}:\d{2})\s*hs/i);
+            const hora = horaMatch ? horaMatch[1] : "No especifica";
+
+            // 4. Ubicación
+            let ubicacion = "No especifica";
+            const dirMatch = texto.match(/DIRECCION DEL HECHO:\s*([^\n]+)/i);
+            if(dirMatch) {
+                ubicacion = dirMatch[1].trim();
+            } else {
+                const ubiLinea = texto.match(/\d{2}:\d{2}\s*hs\s*\/\s*([^/]+(?:\/[^/]+)*)\s*\//i);
+                if(ubiLinea) ubicacion = ubiLinea[1].trim();
+            }
+
+            // 5. Delito / Contravención (Filtra encabezados para evitar falsos positivos)
+            let delito = "No especifica";
+            const delMatch = texto.match(/DELITO O CONTRAVENCION:\s*([^\n]+)/i);
+            if(delMatch) {
+                delito = delMatch[1].trim();
+            } else {
+                const entreAsteriscos = texto.match(/\*([^*]+)\*/g);
+                if(entreAsteriscos) {
+                    for(let match of entreAsteriscos) {
+                        let limpia = match.replace(/\*/g, '').trim();
+                        if(!limpia.includes("DEPARTAMENTAL") && !limpia.includes("FECHA") && !limpia.includes("Ayrton")) {
+                            delito = limpia;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 6. Modalidad
+            let modalidad = "No especifica";
+            const modMatch = texto.match(/MODALIDAD:\s*([^\n]+)/i);
+            if(modMatch) {
+                modalidad = modMatch[1].trim();
+            } else {
+                const modCitas = texto.match(/modalidad\s*“([^”"]+)”/i);
+                if(modCitas) modalidad = modCitas[1].trim();
+            }
+
+            // 7. Involucrados
+            let personas = [];
+            const regexInvolucrados = /([A-ZÁÉÍÓÚÑa-záéíóúñ\s]+?)\s*(?:\((\d{1,2})\)|,?\s*(\d{1,2})\s*AÑOS)/g;
+            let match;
+            while ((match = regexInvolucrados.exec(texto)) !== null) {
+                let nombre = match[1].replace(/Aprehendido|traslado de|y|APRENDIDO O DETENIDO/gi, '').trim();
+                let edad = match[2] || match[3];
+                if(nombre.length > 2 && edad && !nombre.toLowerCase().includes("fecha") && !nombre.toLowerCase().includes("hora")) {
+                    personas.push(`${nombre} (${edad} años)`);
+                }
+            }
+
+            // Actualizar interfaz
+            document.getElementById('rEncabezado').innerText = `${departamental} | ${fecha} - ${hora} hs`;
+            document.getElementById('rUbicacion').innerText = ubicacion;
+            document.getElementById('rDelito').innerText = delito;
+            document.getElementById('rModalidad').innerText = modalidad;
+            document.getElementById('rInvolucrados').innerHTML = personas.length > 0 
+                ? personas.map(p => `<span class="badge">${p}</span>`).join('') 
+                : 'Ninguno registrado';
         }
     </script>
 </body>
